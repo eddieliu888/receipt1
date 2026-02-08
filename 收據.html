@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幼兒園收費收據 (完美存檔終極版 - 雙聯功能 + 個別微調)</title>
+    <style>
+        /* --- 全域設定 --- */
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            background-color: #525659;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- 左側控制面板 --- */
+        .sidebar {
+            width: 400px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .tabs-nav { display: flex; background: #1a252f; border-bottom: 1px solid #34495e; position: sticky; top: 0; z-index: 20; }
+        .tab-btn {
+            flex: 1; padding: 15px 5px; border: none; background: none;
+            cursor: pointer; font-size: 14px; font-weight: bold; color: #95a5a6;
+            transition: 0.3s; border-bottom: 4px solid transparent;
+        }
+        .tab-btn:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
+        .tab-btn.active { color: #fff; background-color: #2c3e50; border-bottom: 4px solid #27ae60; }
+
+        .tab-content { padding: 20px; display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 15px; color: #ecf0f1; font-weight: bold; }
+        input[type="text"], input[type="number"], textarea, select, input[type="date"] {
+            width: 100%; padding: 10px; margin-top: 2px; box-sizing: border-box;
+            border: 1px solid #95a5a6; border-radius: 4px; background: #fff;
+            font-size: 16px; font-family: "Microsoft JhengHei", sans-serif;
+        }
+        textarea { resize: vertical; line-height: 1.5; }
+        .fee-grid { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        
+        /* 按鈕樣式 */
+        .btn-group { display: flex; gap: 10px; margin: 20px 20px; }
+        .btn {
+            flex: 1;
+            background-color: #27ae60; color: white; border: none; padding: 12px;
+            font-size: 16px; cursor: pointer; border-radius: 5px;
+            font-weight: bold; box-shadow: 0 4px 0 #219150;
+            text-align: center;
+            margin-bottom: 10px; /* 增加按鈕間距 */
+        }
+        .btn:hover { background-color: #2ecc71; }
+        .btn-blue { background-color: #2980b9; box-shadow: 0 4px 0 #20638f; }
+        .btn-blue:hover { background-color: #3498db; }
+        .btn-orange { background-color: #e67e22; box-shadow: 0 4px 0 #a85a15; }
+        .btn-orange:hover { background-color: #d35400; }
+        .btn-purple { background-color: #8e44ad; box-shadow: 0 4px 0 #6c3483; } /* 新增紫色按鈕樣式 */
+        .btn-purple:hover { background-color: #9b59b6; }
+        .btn-sm { padding: 5px 10px; font-size: 13px; margin: 0; box-shadow: none; border: 1px solid rgba(0,0,0,0.2); }
+
+        /* 預覽切換 Radio */
+        .preview-toggle {
+            display: flex; gap: 10px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px;
+        }
+        .preview-toggle label { display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: normal; }
+        .preview-toggle input { width: auto; margin-right: 5px; }
+
+        /* 學生列表控制區 */
+        .student-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #f1c40f;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .student-header { display: flex; justify-content: space-between; align-items: center; }
+        .student-name { font-weight: bold; font-size: 1.1em; color: #f1c40f; }
+        .student-controls { display: flex; gap: 5px; align-items: center; }
+        .student-controls select, .student-controls input { font-size: 14px; padding: 5px; }
+        .has-custom-fee { color: #2ecc71; font-weight: bold; font-size: 12px; margin-left: 5px; }
+
+        /* --- 彈出視窗 (Modal) --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 100;
+            display: none; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: #2c3e50; padding: 20px; border-radius: 8px;
+            width: 360px; max-height: 90vh; overflow-y: auto;
+            color: white; border: 2px solid #f1c40f; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal-header { font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #555; padding-bottom: 10px; color: #f1c40f; }
+        .modal-row { display: flex; align-items: center; margin-bottom: 8px; justify-content: space-between; }
+        .modal-row label { font-size: 14px; margin: 0; width: 40%; }
+        .modal-row input { width: 55%; padding: 5px; font-size: 14px; }
+        .modal-footer { margin-top: 20px; display: flex; gap: 10px; }
+
+        /* --- 右側預覽區 --- */
+        .preview-area {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* =========================================
+           ★ 收據樣式 (大字清晰版) ★
+           ========================================= */
+        .receipt-container {
+            width: 270mm; 
+            background: white;
+            margin-bottom: 40px; 
+            padding: 5mm; 
+            font-family: "標楷體", "DFKai-SB", sans-serif;
+            box-sizing: border-box;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        table.receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 3px solid black;
+            color: black;
+            font-family: "標楷體", "DFKai-SB", sans-serif;
+            table-layout: fixed; 
+        }
+
+        table.receipt-table th, 
+        table.receipt-table td {
+            border: 1px solid black;
+            padding: 1px 4px; 
+            vertical-align: middle;
+            font-size: 20px; 
+            font-weight: 600; 
+            line-height: 1.1; 
+            height: 26px; 
+        }
+
+        .title-row { 
+            text-align: center; 
+            font-size: 32px !important; 
+            font-weight: 800 !important; 
+            padding: 5px !important;
+            border-bottom: 3px solid black !important; 
+        }
+        
+        .header-info { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            font-weight: bold; 
+            font-size: 20px; 
+            padding: 4px 2px; 
+        }
+
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        
+        .col-item { width: 14%; }
+        .col-period { width: 9%; }
+        .col-amount { width: 16%; }
+        .col-desc { width: 36%; } 
+        .col-note { width: 25%; }
+
+        .desc-text { font-size: 16px !important; line-height: 1.2; font-weight: 600; }
+        .small-note { 
+            font-size: 18px !important; 
+            font-weight: 800 !important; 
+            line-height: 1.05; 
+        }
+
+        .col-amount, .text-right {
+            font-family: Arial, "標楷體", sans-serif; 
+            font-weight: 800 !important; 
+            font-size: 21px !important; 
+        }
+
+        .total-row {
+            font-size: 24px !important; 
+            font-weight: 900 !important;
+            padding: 6px !important;
+            background-color: #f0f0f0; 
+        }
+
+        .footer-info {
+            margin-top: 5px; 
+            padding: 0 10px; 
+            font-weight: bold; 
+            font-size: 18px; 
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: center;
+        }
+
+        /* =========================================
+           ★ 列印專用設定 ★
+           ========================================= */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 3mm; 
+            }
+            body { background: white; display: block; }
+            .sidebar { display: none; }
+            .preview-area { padding: 0; display: block; background: white; }
+            .receipt-container {
+                width: 100%; height: 100%; max-width: none; margin: 0; box-shadow: none; padding: 2mm; border: none;
+                page-break-after: always; break-after: page;
+            }
+            table.receipt-table { border: 3px solid black !important; }
+            .receipt-container:last-child { page-break-after: auto; break-after: auto; }
+            .modal-overlay { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="switchTab('tab-basic')">1.基本</button>
+            <button class="tab-btn" onclick="switchTab('tab-fees')">2.費用</button>
+            <button class="tab-btn" onclick="switchTab('tab-students')">3.學生</button>
+            <button class="tab-btn" onclick="switchTab('tab-preview')">4.收據預覽</button>
+        </div>
+
+        <div id="tab-basic" class="tab-content active">
+            <div class="form-group">
+                <label>幼兒園名稱</label>
+                <input type="text" id="schoolName" value="新北市私立上農幼兒園" oninput="generate()">
+            </div>
+            <div class="form-group">
+                <label>學期說明</label>
+                <textarea id="termDesc" rows="3" oninput="generate()">繳交114學年度第1學期各項費用--本學期本園之教保服務起迄日：【114年08月01日至115年01月31日，1學期以6個月計算】</textarea>
+            </div>
+            <div class="form-group">
+                <label>法規備註</label>
+                <input type="text" id="legalNote" value="本園收退費基準依據「新北市教保服務機構收退費辦法」辦理。" oninput="generate()">
+            </div>
+            <div class="form-group">
+                <label>合計標題</label>
+                <input type="text" id="totalLabel" value="八月繳費合計" oninput="generate()">
+            </div>
+            
+            <hr style="border: 1px solid #555;">
+            
+            <div class="form-group">
+                <label>資料存取 (含個別設定)</label>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button class="btn btn-blue" onclick="saveData()" style="margin:0; font-size:14px;">💾 存檔</button>
+                    <button class="btn btn-orange" onclick="document.getElementById('fileInput').click()" style="margin:0; font-size:14px;">📂 讀檔</button>
+                </div>
+                <input type="file" id="fileInput" style="display:none;" onchange="loadData(this)">
+            </div>
+        </div>
+
+        <div id="tab-fees" class="tab-content">
+            <div style="color:#aaa; font-size:13px; margin-bottom:10px;">★ 此處為「全域預設金額」，若學生無特別設定將採用此金額。</div>
+            <div class="fee-grid">
+                <div class="form-group"><label>學費 (一學期)</label><input type="number" id="fee_tuition" value="18000" oninput="generate()"></div>
+                <div class="form-group"><label>雜費 (一個月)</label><input type="number" id="fee_misc" value="5000" oninput="generate()"></div>
+                <div class="form-group"><label>材料費 (一學期)</label><input type="number" id="fee_material" value="5000" oninput="generate()"></div>
+                <div class="form-group"><label>活動費 (一個月)</label><input type="number" id="fee_activity" value="500" oninput="generate()"></div>
+                <div class="form-group"><label>午餐費 (一個月)</label><input type="number" id="fee_lunch" value="1500" oninput="generate()"></div>
+                <div class="form-group"><label>點心費 (一個月)</label><input type="number" id="fee_snack" value="1000" oninput="generate()"></div>
+            </div>
+            <div class="fee-grid">
+                <div class="form-group"><label>交通費-單趟</label><input type="number" id="fee_trans_single" value="500" oninput="generate()"></div>
+                <div class="form-group"><label>交通費-雙趟</label><input type="number" id="fee_trans_round" value="1000" oninput="generate()"></div>
+            </div>
+            <div class="fee-grid">
+                <div class="form-group"><label>延長照顧</label><input type="number" id="fee_extended" value="0" oninput="generate()"></div>
+                <div class="form-group"><label>保險費</label><input type="number" id="fee_insurance" value="233" oninput="generate()"></div>
+                <div class="form-group"><label>其它</label><input type="number" id="fee_other" value="0" oninput="generate()"></div>
+            </div>
+        </div>
+
+        <div id="tab-students" class="tab-content">
+            <div class="form-group">
+                <label>班別</label>
+                <input type="text" id="className" value="大一班" oninput="generate()">
+            </div>
+            
+            <div class="form-group">
+                <label>快速新增學生 (一行一位，貼上後按更新)</label>
+                <textarea id="studentRawInput" rows="5" placeholder="例如：
+童唯睿
+林小美"></textarea>
+                <button class="btn btn-blue" onclick="parseStudents()" style="width:100%; margin: 10px 0;">⬇️ 更新學生列表</button>
+            </div>
+
+            <div class="fee-grid">
+                <label>繳費日期設定</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="date" id="dateStart" title="開始日期">
+                    <span style="align-self:center;">~</span>
+                    <input type="date" id="dateEnd" title="結束日期">
+                </div>
+                <button class="btn btn-orange" onclick="randomizeDates()" style="width:100%; margin: 10px 0; font-size:14px;">🎲 隨機分配日期 (自動避開週末)</button>
+            </div>
+
+            <div class="fee-grid">
+                <label>交通車隨機分配</label>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1">
+                        <label style="font-size:12px; color:#ddd;">單趟人數</label>
+                        <input type="number" id="rand_single_count" value="0" min="0" placeholder="0">
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size:12px; color:#ddd;">雙趟人數</label>
+                        <input type="number" id="rand_round_count" value="0" min="0" placeholder="0">
+                    </div>
+                </div>
+                <button class="btn btn-orange" onclick="randomizeTrans()" style="width:100%; margin: 10px 0; font-size:14px;">🎲 隨機分配交通車</button>
+            </div>
+            <label>個別設定 (交通/日期/金額)</label>
+            <div id="studentListContainer"></div>
+        </div>
+
+        <div id="tab-preview" class="tab-content">
+            <div class="form-group">
+                <label>預覽顯示模式</label>
+                <div class="preview-toggle">
+                    <label>
+                        <input type="radio" name="viewMode" value="school" checked onchange="updateViewMode(this.value)"> 第一聯 (幼兒園)
+                    </label>
+                    <label>
+                        <input type="radio" name="viewMode" value="payer" onchange="updateViewMode(this.value)"> 第二聯 (繳費人)
+                    </label>
+                </div>
+                <p style="color:#aaa; font-size:13px; margin-top:5px;">
+                    * 此處切換僅影響右側預覽畫面。<br>
+                    * 若要列印完整收據（兩聯都有），請使用下方的「雙聯合併列印」按鈕。
+                </p>
+            </div>
+        </div>
+
+        <div style="padding: 20px;">
+            <button class="btn" onclick="window.print()">🖨️ 列印目前預覽 (單一版本)</button>
+            <button class="btn btn-blue" onclick="printCombined()">🖨️ 雙聯合併列印 (學校+家長)</button>
+        </div>
+    </div>
+
+    <div id="customFeeModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                💰 個別費用微調：<span id="modalStudentName"></span>
+            </div>
+            <div style="font-size:13px; color:#aaa; margin-bottom:15px;">
+                說明：輸入數字即可覆蓋全域設定。若欄位留空，則自動使用預設值。
+            </div>
+            <div id="modalInputs">
+                </div>
+            <div class="modal-footer">
+                <button class="btn btn-blue" onclick="saveCustomFees()">✅ 確定儲存</button>
+                <button class="btn btn-orange" onclick="closeModal()">❌ 取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-area" id="outputArea"></div>
+
+    <script>
+        // 學生資料結構： { name: "童唯睿", trans: "none", date: "114年08月08日", customFees: {} }
+        let studentsData = [];
+        let currentViewMode = 'school'; 
+        let editingStudentIndex = -1; // 用於記錄目前正在編輯哪位學生的費用
+
+        // 費用 ID 對照表 (用於生成 Modal)
+        const feeFields = [
+            { id: 'fee_tuition', label: '學費' },
+            { id: 'fee_misc', label: '雜費' },
+            { id: 'fee_material', label: '材料費' },
+            { id: 'fee_activity', label: '活動費' },
+            { id: 'fee_lunch', label: '午餐費' },
+            { id: 'fee_snack', label: '點心費' },
+            { id: 'fee_trans_single', label: '交通費(單趟)' },
+            { id: 'fee_trans_round', label: '交通費(雙趟)' },
+            { id: 'fee_extended', label: '延長照顧' },
+            { id: 'fee_insurance', label: '保險費' },
+            { id: 'fee_other', label: '其它' }
+        ];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            const btns = document.querySelectorAll('.tab-btn');
+            if(tabId === 'tab-basic') btns[0].classList.add('active');
+            if(tabId === 'tab-fees') btns[1].classList.add('active');
+            if(tabId === 'tab-students') btns[2].classList.add('active');
+            if(tabId === 'tab-preview') btns[3].classList.add('active');
+        }
+
+        // --- 初始化 ---
+        window.onload = function() {
+            const today = new Date();
+            document.getElementById('dateStart').valueAsDate = today;
+            document.getElementById('dateEnd').valueAsDate = today;
+            parseStudents(); 
+        };
+
+        function formatMoney(num) { return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+        function updateViewMode(mode) {
+            currentViewMode = mode;
+            generate();
+        }
+
+        // --- 核心邏輯：更新學生名單 ---
+        function parseStudents() {
+            const raw = document.getElementById('studentRawInput').value;
+            const lines = raw.split('\n');
+            const newStudents = [];
+            const defaultDate = "114年08月08日";
+
+            lines.forEach(line => {
+                const name = line.trim();
+                if (name) {
+                    const existing = studentsData.find(s => s.name === name);
+                    if (existing) {
+                        newStudents.push(existing);
+                    } else {
+                        newStudents.push({
+                            name: name,
+                            trans: "none", 
+                            date: defaultDate,
+                            customFees: {} // 初始化自訂費用
+                        });
+                    }
+                }
+            });
+            studentsData = newStudents;
+            renderStudentList();
+            generate();
+        }
+
+        // --- 渲染學生個別設定區塊 ---
+        function renderStudentList() {
+            const container = document.getElementById('studentListContainer');
+            container.innerHTML = '';
+
+            studentsData.forEach((s, index) => {
+                const hasCustom = s.customFees && Object.keys(s.customFees).length > 0;
+                const customIndicator = hasCustom ? '<span class="has-custom-fee">(已微調)</span>' : '';
+
+                const div = document.createElement('div');
+                div.className = 'student-item';
+                div.innerHTML = `
+                    <div class="student-header">
+                        <span class="student-name">${index+1}. ${s.name} ${customIndicator}</span>
+                        <button class="btn btn-purple btn-sm" onclick="openCustomFeeModal(${index})">💰 費用微調</button>
+                    </div>
+                    <div class="student-controls">
+                        <select onchange="updateStudent(${index}, 'trans', this.value)" style="flex:1;">
+                            <option value="none" ${s.trans==='none'?'selected':''}>無交通車</option>
+                            <option value="single" ${s.trans==='single'?'selected':''}>單趟</option>
+                            <option value="round" ${s.trans==='round'?'selected':''}>雙趟</option>
+                        </select>
+                        <input type="text" value="${s.date}" oninput="updateStudent(${index}, 'date', this.value)" style="flex:1;">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateStudent(index, field, value) {
+            studentsData[index][field] = value;
+            generate();
+        }
+
+        // --- ★★★ 個別費用微調功能 ★★★ ---
+        function openCustomFeeModal(index) {
+            editingStudentIndex = index;
+            const student = studentsData[index];
+            document.getElementById('modalStudentName').textContent = student.name;
+            
+            const container = document.getElementById('modalInputs');
+            container.innerHTML = '';
+
+            feeFields.forEach(field => {
+                const globalVal = document.getElementById(field.id).value;
+                // 檢查是否有自訂值
+                const currentVal = (student.customFees && student.customFees[field.id] !== undefined) ? student.customFees[field.id] : '';
+                
+                const div = document.createElement('div');
+                div.className = 'modal-row';
+                div.innerHTML = `
+                    <label>${field.label}</label>
+                    <input type="number" id="modal_${field.id}" placeholder="預設: ${globalVal}" value="${currentVal}">
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('customFeeModal').style.display = 'flex';
+        }
+
+        function saveCustomFees() {
+            if (editingStudentIndex === -1) return;
+            const student = studentsData[editingStudentIndex];
+            
+            if (!student.customFees) student.customFees = {};
+
+            feeFields.forEach(field => {
+                const inputVal = document.getElementById(`modal_${field.id}`).value;
+                if (inputVal === '') {
+                    // 如果清空，刪除該 key，回復使用預設值
+                    delete student.customFees[field.id];
+                } else {
+                    student.customFees[field.id] = Number(inputVal);
+                }
+            });
+
+            closeModal();
+            renderStudentList(); // 更新列表顯示 (顯示"已微調")
+            generate(); // 更新預覽
+        }
+
+        function closeModal() {
+            document.getElementById('customFeeModal').style.display = 'none';
+            editingStudentIndex = -1;
+        }
+
+        // --- Helper: 取得最終費用 (優先讀取自訂，否則讀取全域) ---
+        function getFee(student, feeId) {
+            // 檢查該學生是否有該項目的自訂費用
+            if (student.customFees && student.customFees[feeId] !== undefined && student.customFees[feeId] !== null) {
+                return Number(student.customFees[feeId]);
+            }
+            // 否則回傳全域設定
+            return Number(document.getElementById(feeId).value) || 0;
+        }
+
+
+        // --- 日期隨機分配邏輯 ---
+        function randomizeDates() {
+            const startStr = document.getElementById('dateStart').value;
+            const endStr = document.getElementById('dateEnd').value;
+            
+            if (!startStr || !endStr) { alert("請先選擇開始與結束日期"); return; }
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            if (start > end) { alert("開始日期不能晚於結束日期"); return; }
+
+            studentsData.forEach(s => {
+                let validDate = false;
+                let randomDate;
+                let attempt = 0;
+                while (!validDate && attempt < 50) {
+                    const timeDiff = end.getTime() - start.getTime();
+                    const randomTime = Math.random() * (timeDiff + 86400000);
+                    randomDate = new Date(start.getTime() + randomTime);
+                    const day = randomDate.getDay();
+                    if (day !== 0 && day !== 6) validDate = true;
+                    attempt++;
+                }
+                const rocYear = randomDate.getFullYear() - 1911;
+                const month = (randomDate.getMonth() + 1).toString().padStart(2, '0');
+                const date = randomDate.getDate().toString().padStart(2, '0');
+                s.date = `${rocYear}年${month}月${date}日`;
+            });
+            renderStudentList();
+            generate();
+        }
+
+        // --- 交通車隨機分配邏輯 ---
+        function randomizeTrans() {
+            const singleCount = parseInt(document.getElementById('rand_single_count').value) || 0;
+            const roundCount = parseInt(document.getElementById('rand_round_count').value) || 0;
+            
+            if (singleCount < 0 || roundCount < 0) { alert("人數不能為負數"); return; }
+            if (singleCount + roundCount > studentsData.length) {
+                alert("人數超過目前學生總數！");
+                return;
+            }
+
+            studentsData.forEach(s => s.trans = 'none');
+            const indices = Array.from(studentsData.keys()); 
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            for (let i = 0; i < singleCount; i++) studentsData[indices[i]].trans = 'single';
+            for (let i = 0; i < roundCount; i++) studentsData[indices[singleCount + i]].trans = 'round';
+
+            renderStudentList();
+            generate();
+            alert("交通車分配完成！");
+        }
+
+        // --- 存檔與讀檔 ---
+        function saveData() {
+            const termDesc = document.getElementById('termDesc').value;
+            const className = document.getElementById('className').value;
+            const match = termDesc.match(/(\d+)學年度第(\d+)學期/);
+            let filename = "收據資料備份.json";
+            if (match && className) filename = `${match[1]}0${match[2]}${className}.json`; 
+
+            const dataToSave = {
+                students: studentsData,
+                settings: {
+                    schoolName: document.getElementById('schoolName').value,
+                    termDesc: termDesc,
+                    legalNote: document.getElementById('legalNote').value,
+                    totalLabel: document.getElementById('totalLabel').value,
+                    className: className,
+                    dateStart: document.getElementById('dateStart').value,
+                    dateEnd: document.getElementById('dateEnd').value,
+                    fees: {
+                        tuition: document.getElementById('fee_tuition').value,
+                        misc: document.getElementById('fee_misc').value,
+                        material: document.getElementById('fee_material').value,
+                        activity: document.getElementById('fee_activity').value,
+                        lunch: document.getElementById('fee_lunch').value,
+                        snack: document.getElementById('fee_snack').value,
+                        trans_single: document.getElementById('fee_trans_single').value,
+                        trans_round: document.getElementById('fee_trans_round').value,
+                        extended: document.getElementById('fee_extended').value,
+                        insurance: document.getElementById('fee_insurance').value,
+                        other: document.getElementById('fee_other').value
+                    }
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(dataToSave, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    document.getElementById('schoolName').value = data.settings.schoolName;
+                    document.getElementById('termDesc').value = data.settings.termDesc;
+                    document.getElementById('legalNote').value = data.settings.legalNote;
+                    document.getElementById('totalLabel').value = data.settings.totalLabel;
+                    document.getElementById('className').value = data.settings.className;
+                    if(data.settings.dateStart) document.getElementById('dateStart').value = data.settings.dateStart;
+                    if(data.settings.dateEnd) document.getElementById('dateEnd').value = data.settings.dateEnd;
+                    
+                    document.getElementById('fee_tuition').value = data.settings.fees.tuition;
+                    document.getElementById('fee_misc').value = data.settings.fees.misc;
+                    document.getElementById('fee_material').value = data.settings.fees.material;
+                    document.getElementById('fee_activity').value = data.settings.fees.activity;
+                    document.getElementById('fee_lunch').value = data.settings.fees.lunch;
+                    document.getElementById('fee_snack').value = data.settings.fees.snack;
+                    document.getElementById('fee_trans_single').value = data.settings.fees.trans_single;
+                    document.getElementById('fee_trans_round').value = data.settings.fees.trans_round;
+                    document.getElementById('fee_extended').value = data.settings.fees.extended;
+                    document.getElementById('fee_insurance').value = data.settings.fees.insurance;
+                    document.getElementById('fee_other').value = data.settings.fees.other;
+
+                    studentsData = data.students;
+                    let nameListStr = "";
+                    studentsData.forEach(s => nameListStr += s.name + "\n");
+                    document.getElementById('studentRawInput').value = nameListStr.trim();
+                    
+                    renderStudentList();
+                    generate();
+                    alert("讀取成功！");
+                } catch (err) {
+                    alert("檔案格式錯誤");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- ★★★ 核心：產生單張收據 HTML 模板 (通用函數) ★★★ ---
+        function getReceiptHtml(student, receiptType) {
+            const schoolName = document.getElementById('schoolName').value;
+            const termDesc = document.getElementById('termDesc').value; 
+            const legalNote = document.getElementById('legalNote').value;
+            const totalLabel = document.getElementById('totalLabel').value;
+            const className = document.getElementById('className').value;
+            
+            // 使用 getFee 函數，支援個別學生覆寫
+            const f_tuition = getFee(student, 'fee_tuition');
+            const f_misc = getFee(student, 'fee_misc');
+            const f_material = getFee(student, 'fee_material');
+            const f_activity = getFee(student, 'fee_activity');
+            const f_lunch = getFee(student, 'fee_lunch');
+            const f_snack = getFee(student, 'fee_snack');
+            
+            // 交通費率也要能個別覆寫
+            const rate_trans_single = getFee(student, 'fee_trans_single');
+            const rate_trans_round = getFee(student, 'fee_trans_round');
+            
+            const f_extended = getFee(student, 'fee_extended');
+            const f_insurance = getFee(student, 'fee_insurance');
+            const f_other = getFee(student, 'fee_other');
+
+            let val_trans_single = 0;
+            let val_trans_round = 0;
+
+            if (student.trans === 'single') {
+                val_trans_single = rate_trans_single;
+            } else if (student.trans === 'round') {
+                val_trans_round = rate_trans_round;
+            }
+
+            const total = f_tuition + f_misc + f_material + f_activity + f_lunch + f_snack + 
+                          val_trans_single + val_trans_round + f_extended + f_insurance + f_other;
+
+            let topLabel = "";
+            if (receiptType === 'school') {
+                topLabel = "第一聯-由幼兒園存查";
+            } else if (receiptType === 'payer') {
+                topLabel = "第二聯-由繳費人收執";
+            }
+
+            return `
+            <div class="receipt-container">
+                <div style="font-size: 15px; margin-bottom: 2px; font-weight:bold;">${topLabel}</div>
+                <table class="receipt-table">
+                    <tr>
+                        <td colspan="5" class="title-row">${schoolName} 繳費收據</td>
+                    </tr>
+                    <tr style="background-color: #fff;">
+                        <td colspan="5">
+                            <div class="header-info">
+                                <span>幼兒姓名：<span style="font-size: 1.3em;">${student.name}</span></span>
+                                <span>班別：${className}</span>
+                                <span>繳費日期：${student.date}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="desc-text">${termDesc}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="desc-text">${legalNote}</td>
+                    </tr>
+                    
+                    <tr class="text-center font-bold" style="background-color: #f9f9f9;">
+                        <td class="col-item">收費項目</td>
+                        <td class="col-period">期間</td>
+                        <td class="col-amount">金額</td>
+                        <td class="col-desc">說明/期程</td>
+                        <td class="col-note">備註</td>
+                    </tr>
+
+                    <tr>
+                        <td class="text-center font-bold">學費</td>
+                        <td class="text-center">一學期</td>
+                        <td class="text-right font-bold">${formatMoney(f_tuition)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">雜費</td>
+                        <td class="text-center">一個月</td>
+                        <td class="text-right font-bold">${formatMoney(f_misc)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">材料費</td>
+                        <td class="text-center">一學期</td>
+                        <td class="text-right font-bold">${formatMoney(f_material)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">活動費</td>
+                        <td class="text-center">一個月</td>
+                        <td class="text-right font-bold">${formatMoney(f_activity)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">午餐費</td>
+                        <td class="text-center">一個月</td>
+                        <td class="text-right font-bold">${formatMoney(f_lunch)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">點心費</td>
+                        <td class="text-center">一個月</td>
+                        <td class="text-right font-bold">${formatMoney(f_snack)}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="2" class="text-center font-bold">交通費</td>
+                        <td class="text-center">單趟</td>
+                        <td class="text-right font-bold">${formatMoney(val_trans_single)}</td>
+                        <td></td>
+                        <td rowspan="2" class="small-note">非補助項目</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center">雙趟</td>
+                        <td class="text-right font-bold">${formatMoney(val_trans_round)}</td>
+                        <td></td>
+                    </tr>
+
+                    <tr>
+                        <td class="text-center font-bold">延長照顧<br>服務費</td>
+                        <td class="text-center">一個月</td>
+                        <td class="text-right font-bold">${formatMoney(f_extended)}</td>
+                        <td></td>
+                        <td class="small-note">非補助項目</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">保險費</td>
+                        <td class="text-center">一學期</td>
+                        <td class="text-right font-bold">${formatMoney(f_insurance)}</td>
+                        <td class="small-note">以當學年度保險收費標準辦理</td>
+                        <td class="small-note">非補助項目</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center font-bold">其它</td>
+                        <td></td>
+                        <td class="text-right font-bold">${formatMoney(f_other)}</td>
+                        <td colspan="2" class="small-note">
+                            代購運動服(制服、圍兜)、書包及餐具、戶外教學門票等。應視家長個別需求，不得強制要求購買或參加。
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td colspan="5" class="total-row">
+                            <div style="display:flex; justify-content:center; position:relative;">
+                                <span>${totalLabel}</span>
+                                <span style="position: absolute; right: 20px;">$${formatMoney(total)}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="footer-info">
+                    <div style="text-align: left;">經手人：</div>
+                    <div style="text-align: center;">園長/負責人：</div>
+                    <div></div> 
+                </div>
+            </div>
+            `;
+        }
+
+        function generate() {
+            const outputArea = document.getElementById('outputArea');
+            let fullHtml = "";
+            studentsData.forEach(student => {
+                if (!student.name) return;
+                fullHtml += getReceiptHtml(student, currentViewMode);
+            });
+            outputArea.innerHTML = fullHtml;
+        }
+
+        function printCombined() {
+            const outputArea = document.getElementById('outputArea');
+            const originalHtml = outputArea.innerHTML;
+            let combinedHtml = "";
+            studentsData.forEach(student => {
+                if (!student.name) return;
+                combinedHtml += getReceiptHtml(student, 'school');
+                combinedHtml += getReceiptHtml(student, 'payer');
+            });
+            outputArea.innerHTML = combinedHtml;
+            window.print();
+            setTimeout(() => { outputArea.innerHTML = originalHtml; }, 500);
+        }
+    </script>
+</body>
+</html>
