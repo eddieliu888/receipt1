@@ -652,10 +652,15 @@
         // --- 存檔與讀檔 ---
         function saveData() {
             const termDesc = document.getElementById('termDesc').value;
-            const className = document.getElementById('className').value;
-            const match = termDesc.match(/(\d+)學年度第(\d+)學期/);
-            let filename = "收據資料備份.json";
-            if (match && className) filename = `${match[1]}0${match[2]}${className}.json`; 
+            const className = document.getElementById('className').value || '未命名班級';
+            
+            // 依照設定的繳費開始日期(或當下時間)的年月與班級作為檔名
+            const dateStartInput = document.getElementById('dateStart').value;
+            const dateObj = dateStartInput ? new Date(dateStartInput) : new Date();
+            const rocYear = dateObj.getFullYear() - 1911;
+            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            
+            let filename = `${rocYear}${month}${className}.json`;
 
             const dataToSave = {
                 students: studentsData,
